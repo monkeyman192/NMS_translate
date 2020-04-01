@@ -1,4 +1,3 @@
-import csv
 from itertools import accumulate
 import json
 
@@ -1195,7 +1194,7 @@ def parse_branch(data, chunk, weight, picker_func):
                 return parse_branch(sub_data, chunk, weight, picker_func)
     elif isinstance(data, dict):
         # parse the weighted letter dictionary
-        return picker_func(data, weight)[0]
+        return picker_func(data, weight)
 
 
 def gen_next_char(chunk, weight, choice, picker_func):
@@ -1226,6 +1225,16 @@ def ROR_8(val, shift):
 def add64(a, b):
     """ Perform addition as if we are on a 64-bit register. """
     return (a + b) & 0xFFFFFFFFFFFFFFFF
+
+
+def capitalize_if_required(func):
+    def wrapper(*args, **kwargs):
+        trans_word = func(*args, **kwargs)
+        word = args[0]
+        if word[0].lower() != word[0]:
+            return trans_word.capitalize()
+        return trans_word
+    return wrapper
 
 
 def prepare(word):
@@ -1299,8 +1308,10 @@ def get_next_letter(seed, chunk, trans_idx, picker_func):
     return gen_next_char(chunk, weight, trans_idx, picker_func), seed
 
 
+@capitalize_if_required
 def translate(word, race):
-    # max_length = 8
+    """ main translation function. """
+
     rbx = prepare(word)
     rax = 0
     rcx = LOBYTES(rbx)
@@ -1433,38 +1444,9 @@ def finalise(word, seed):
     """
 
 
-def test(race):
-    with open(f'{race}_words.csv', 'r', newline='') as f:
-        data = csv.reader(f)
-        for row in data:
-            word = row[1]
-            result = f'"{word}" '
-            word_capitalized = word.capitalize()
-            expected_trans_lower = row[2]
-            trans_lower = translate(word, race)
-            result += f'lowercase: {trans_lower} ({expected_trans_lower}), '
-            expected_trans_capitalized = row[3]
-            trans_capitalized = translate(word_capitalized, race)
-            result += f'capitalized: {trans_capitalized} ({expected_trans_capitalized}), '
-            result = f'"{word}" translated to'
-            if len(row) == 5:
-                word_uppercase = word.upper()
-                expected_trans_uppercase = row[4]
-                trans_uppercase = translate(word_uppercase, race)
-                result += f'uppercase: {trans_uppercase} ({expected_trans_uppercase}), '
-
-
-def requires_capitalisation(word):
-    if word[0].lower() != word[0]:
-        return True
-    return False
-
-
 if __name__ == "__main__":
-    word = 'monkeyman'
+    word = "rare"
     race = 'explorers'
     trans_word = translate(word, race)
-    if requires_capitalisation(word):
-        trans_word = trans_word.capitalize()
     print(f'"{word}" translates to "{trans_word}"')
     # print(check_consecutive_vowels('vzaaek'))
