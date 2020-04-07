@@ -1100,7 +1100,7 @@ def bittest(val, n):
 def split_seed(seed):
     """ Returns the low (last 4 bytes) and high (first 4 bytes) of the seed.
     """
-    return seed & 0xFFFFFFFF, seed >> 0x20
+    return LOBYTES(seed), HIBYTES(seed)
 
 
 def join_seed(low, high):
@@ -1371,26 +1371,23 @@ def translate(word, race):
     # if cl & 1: sub_140816350, else: v8 = sub_140816300
 
 
-def check_consecutive_vowels(word):
-    """ Returns a location where there are 3 consecutive vowels in a row? """
-    idx = 0
-    consecutive_vowels = 0
-    vowels = 0
-    while True:
-        letter = word[idx]
-        if consecutive_vowels != 3:
-            idx += 1
-            consecutive_vowels += 1
-            vowels += 1
-            if letter not in ('a', 'e', 'i', 'o', 'u'):
-                consecutive_vowels = 0
-            if idx >= len(word):
-                return
-        else:
-            if letter not in ('a', 'e', 'i', 'o', 'u', 'y'):
-                return vowels - 3
+def check_consecutive_consonants(word):
+    """ Return the start location of where there are 3 consecutive consonants.
+    """
+    consecutive_consonants = 0
+    for idx, letter in enumerate(word):
+        if consecutive_consonants != 3:
+            if letter not in VOWELS:
+                consecutive_consonants += 1
             else:
-                consecutive_vowels = 0
+                consecutive_consonants = 0
+        else:
+            if letter not in VOWELS + ('y',):
+                return idx - 3
+            else:
+                consecutive_consonants = 0
+    # If we don't have any then return None.
+    return
 
 
 def finalize_no_last_letter(word, seed, letters_added, trans_idx, picker_func):
@@ -1450,7 +1447,7 @@ def finalise(word, seed):
                         # default (def_140B51416)
                         seed = update_seed(seed)
                         rax = LOBYTES(seed)
-                        rax = (rax + 4 * rax) >> 0x20
+                        rax = (5 * rax) >> 0x20
                         new_letter = VOWELS[rax]
                         word = insert_letter_at_idx(word, new_letter, 1)
                         # loc_140B51498
@@ -1465,10 +1462,18 @@ def finalise(word, seed):
                                     (((ord(last_letter) - 0x61) < 0x14) and
                                      last_letter in VOWELS)):
                                 # loc_140B514DA
-                                eax = (0xFFFFFF9E + ord(last_letter)) & 0xFFFFFFFF
+                                eax = LOBYTES(0xFFFFFF9E + ord(last_letter))
                                 if eax <= 0x15:
-                                    print(check_consecutive_vowels(word))
-                                    # continue from 140B51562
+                                    idx = check_consecutive_consonants(word)
+                                    if idx is not None:
+                                        seed = update_seed(seed)
+                                        r8 = LOBYTES(seed)
+                                        seed = update_seed(seed)
+                                        rcx = (5 * LOBYTES(seed)) >> 0x20
+                                        idx += ((3 * r8) >> 0x20) + 1
+                                        new_letter = VOWELS[rcx]
+                                        word = insert_letter_at_idx(
+                                            word, new_letter, idx)
                                 else:
                                     # default
                                     pass
@@ -1493,4 +1498,3 @@ if __name__ == "__main__":
     race = 'explorers'
     trans_word = translate(word, race)
     print(f'"{word}" translates to "{trans_word}"')
-    # print(check_consecutive_vowels('vzaaek'))
