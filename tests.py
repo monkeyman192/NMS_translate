@@ -38,9 +38,19 @@ def test(race):
     print(f'Results: {len(failures)}/{total}')
     with open(f'test_results_{race}.txt', 'w') as f:
         f.write('\n'.join(failures))
+    return len(failures), total
 
 
 if __name__ == "__main__":
-    test('explorers')
-    test('warriors')
-    test('traders')
+    failures = 0
+    total = 0
+    f, t = test('explorers')
+    failures += f
+    total += t
+    f, t = test('warriors')
+    failures += f
+    total += t
+    f, t = test('traders')
+    failures += f
+    total += t
+    print(f'{100 * (total - failures) / total}% conversion rate success!')

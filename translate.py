@@ -1092,6 +1092,11 @@ def hprint(x):
     print(hex(x))
 
 
+def dprint(x, prnt):
+    if prnt:
+        print(x)
+
+
 def bittest(val, n):
     """ Return the n^th least significant bit of val. """
     return (val >> n) & 1
@@ -1350,7 +1355,8 @@ def translate(word, race):
 
     if letters_required <= 0:
         # dummy for now. Need to finalise too
-        return chunk
+        translated_word = finalise(chunk, seed)
+        return translated_word
 
     for _ in range(letters_required):
         next_char, seed = get_next_letter(seed, chunk, trans_idx, picker_func)
@@ -1365,7 +1371,6 @@ def translate(word, race):
                 translated_word += extra_letter
             # We are done in this case...
             break
-    hprint(seed)
     translated_word = finalise(translated_word, seed)
     return translated_word
     # if cl & 1: sub_140816350, else: v8 = sub_140816300
@@ -1413,82 +1418,72 @@ def finalize_no_last_letter(word, seed, letters_added, trans_idx, picker_func):
     return
 
 
+def insert_vowel(word, seed):
+    # default (def_140B51416)
+    seed = update_seed(seed)
+    rax = LOBYTES(seed)
+    rax = (5 * rax) >> 0x20
+    word = insert_letter_at_idx(word, VOWELS[rax], 1)
+    return word, seed
+
+
 def finalise(word, seed):
     """ This function may add a number of extra letters to make the final word
     more... reasonable...?"""
     first_letter = word[0]
     second_letter = word[1]
-    compare_const = 0b100000100000100010001  # filter to pick out vowels
-    first_letter_idx = ord(first_letter) - 0x61
-    second_letter_idx = ord(second_letter) - 0x61
+
+    debug = False
+
+    dprint(word, debug)
 
     if (first_letter not in VOWELS) and (second_letter not in VOWELS):
-        # loc_140B5136E
-        if first_letter != 's':
+        if first_letter != 's' or second_letter not in 'hklmnprtwy':
             if second_letter == 'h':
-                # loc_140B5143B
-                pass
+                if first_letter not in 'ctw':
+                    word, seed = insert_vowel(word, seed)
             elif second_letter == 'l':
-                # loc_140B51418
-                pass
+                if first_letter not in 'bcfgps':
+                    word, seed = insert_vowel(word, seed)
             elif second_letter == 'r':
-                # loc_140B513F5
-                pass
+                if first_letter not in 'bcdfgkpt':
+                    word, seed = insert_vowel(word, seed)
             elif second_letter == 'w':
-                # loc_140B513DB
-                pass
+                if first_letter not in 'dgt':
+                    word, seed = insert_vowel(word, seed)
             elif second_letter == 'y':
-                mod_char = ord(first_letter) - 0x68
-                if mod_char <= 0xA:
-                    if chr(mod_char) in ('a', 'f', 'k'):
-                        # loc_140B51498
-                        pass
-                    else:
-                        # default (def_140B51416)
-                        seed = update_seed(seed)
-                        rax = LOBYTES(seed)
-                        rax = (5 * rax) >> 0x20
-                        new_letter = VOWELS[rax]
-                        word = insert_letter_at_idx(word, new_letter, 1)
-                        # loc_140B51498
-                        if len(word) < 2:
-                            # def_140B514F2
-                            pass
-                        else:
-                            last_letter = word[-1]
-                            second_last_letter = word[-2]
-                            print('hi')
-                            if ((second_last_letter != 'g') or
-                                    (((ord(last_letter) - 0x61) < 0x14) and
-                                     last_letter in VOWELS)):
-                                # loc_140B514DA
-                                eax = LOBYTES(0xFFFFFF9E + ord(last_letter))
-                                if eax <= 0x15:
-                                    idx = check_consecutive_consonants(word)
-                                    if idx is not None:
-                                        seed = update_seed(seed)
-                                        r8 = LOBYTES(seed)
-                                        seed = update_seed(seed)
-                                        rcx = (5 * LOBYTES(seed)) >> 0x20
-                                        idx += ((3 * r8) >> 0x20) + 1
-                                        new_letter = VOWELS[rcx]
-                                        word = insert_letter_at_idx(
-                                            word, new_letter, idx)
-                                else:
-                                    # default
-                                    pass
-                            else:
-                                pass
-
-                else:
-                    # default (def_140B51416)
-                    pass
+                if first_letter not in 'hmr':
+                    word, seed = insert_vowel(word, seed)
             else:
-                # default (def_140B51416)
-                pass
-    else:
-        # loc_140B51498
+                dprint(word, debug)
+                word, seed = insert_vowel(word, seed)
+    # loc_140B51498
+    if len(word) < 2:
+        # def_140B514F2
         pass
+    else:
+        last_letter = word[-1]
+        second_last_letter = word[-2]
+        if ((second_last_letter != 'g') or
+                (((ord(last_letter) - 0x61) < 0x14) and
+                    last_letter in VOWELS)):
+            # loc_140B514DA
+            eax = LOBYTES(0xFFFFFF9E + ord(last_letter))
+            if eax <= 0x15:
+                idx = check_consecutive_consonants(word)
+                if idx is not None:
+                    seed = update_seed(seed)
+                    r8 = LOBYTES(seed)
+                    seed = update_seed(seed)
+                    rcx = (5 * LOBYTES(seed)) >> 0x20
+                    idx += ((3 * r8) >> 0x20) + 1
+                    new_letter = VOWELS[rcx]
+                    word = insert_letter_at_idx(word, new_letter, idx)
+            else:
+                # default
+                pass
+        else:
+            pass
 
     return word
 
